@@ -1,0 +1,165 @@
+div(ng-controller="dashboard/widgets/heatmapchart/edit")
+    div(device-selector-container, hide-filter-buttons="false")
+        .modal-header
+            h4.modal-title {{ 'edit:heatmapchart Widget' | translate }} {{'Heatmap Chart' | translate}}: {{ widget.title }}
+
+        .modal-body
+            ul.nav.nav-tabs.nav-tabs-sm
+
+                li(ng-class="{active:tab==''}")
+                    a(ng-click="tab=''")
+                        | {{ 'main:chartwidget:tab' | translate }}
+                li(ng-class="{active:tab=='timeframe'}")
+                    a.dropdown-toggle(data-toggle="dropdown" )
+                        | {{ 'timeframe:chartwidget:tab' | translate }}
+                        | &nbsp;
+                        i.fa.fa-angle-down
+                    ul.dropdown-menu.pull-right(role='menu')
+                        li
+                            a(ng-click="tab='timeframe';widgetCopy.options.timeframe.type='absolute'")
+                                | {{ 'quick:timeframe:tab' | translate }}
+                                i.fa.fa-check.pull-right(ng-show="widgetCopy.options.timeframe.type=='absolute'")
+                        li
+                            a(ng-click="tab='timeframe';widgetCopy.options.timeframe.type='relative'")
+                                | {{ 'relative:timeframe:tab' | translate }}
+                                i.fa.fa-check.pull-right(ng-show="widgetCopy.options.timeframe.type=='relative'")
+                        li
+                            a(ng-click="tab='timeframe';widgetCopy.options.timeframe.type='static'")
+                                | {{ 'static:timeframe:tab' | translate }}
+                                i.fa.fa-check.pull-right(ng-show="widgetCopy.options.timeframe.type=='static'")
+                li(ng-class="{active:tab=='input'}")
+                    a(ng-click="tab='input'")
+                        | {{ 'input:chartwidget:tab' | translate }}
+                li(ng-class="{active:tab=='customize'}")
+                    a(ng-click="tab='customize'")
+                        | {{ 'customize:chartwidget:tab' | translate }}
+
+            form.form-horizontal
+                .form-body
+                    //-main tab
+                    div( ng-if="tab==''")
+                        .form-group
+                            label.col-md-3.control-label
+                                | {{'title:widget:label'|translate}}
+                            .col-md-9
+                                input.form-control(ng-model="widgetCopy.title")
+                    //-timeframe tab
+                    div(ng-if="tab=='timeframe'")
+                        timeframe-config(obj="widgetCopy.options", ischart="true", validate-date="validateDate",  dashboard-options="dashboardOptions", hidestep="true")
+                    //- input tab
+                    div(ng-if="tab=='input'")
+                        div
+                            inputs
+                                .table-scrollable
+                                    table.table
+                                        tr
+                                            th {{ 'kind:input:chart' | translate }}
+                                            th {{ 'name:input:chart' | translate }}
+                                            th {{ 'measurement:input:chart' | translate }}
+                                            th &nbsp;
+                                        //- list of existing inputs
+                                        tr(ng-repeat='(i,input) in widgetCopy.options.inputs')
+                                            //- kind
+                                            td(ng-if="input.byTag != true") {{input.kind | translate}}
+                                            //- name
+                                            td(ng-if="input.byTag != true")
+                                                div(ng-if="input.kind === 'global'")
+                                                    span(ng-if="input.selectorIndice >= 0 && input.selectorIndice != ''") 
+                                                        | {{dashboardData.selected[input.selectorIndice][0].name || dashboardData.stored.selected[input.selectorIndice][0]}}
+                                                    span(ng-if="!(input.selectorIndice >= 0 && input.selectorIndice != '')")
+                                                        | {{dashboardData.device.name || dashboardData.stored.device}}
+                                                div(ng-if="input.kind != 'global'", title="{{input.id}}")
+                                                    | {{ getInputDocumentName(input.kind, input.id) }}
+                                            //- type
+                                            td(ng-if="input.byTag != true") {{input.type | translate}}
+                                            //- add button
+                                            td(ng-if="input.byTag != true")
+                                                a.btn(ng-click="removeInput(i); widgetCopy.options.inputsFull = false;",style="color : #BFBFBF; float:right;")
+                                                    i.fa.fa-fw.icon-trash
+                                        
+                                        //- new input
+                                        tr(ng-if="!widgetCopy.options.inputsFull")
+                                            //- kind
+                                            td: select.form-control(ng-model="newInput.source", ng-change="newInput.id=undefined")
+                                                option(value="measurement")
+                                                    | {{'(smart)device:input:chart' | translate}}
+                                                //- for global dashboard
+                                                option(value="global")
+                                                    | {{'global:input:chart' | translate}}
+                                                option(value="system", disabled)
+                                                    | {{'systemLog:input:chart' | translate}}
+                                                option(value="stat", disabled)
+                                                    | {{'stat:input:chart' | translate}}
+                                            //- name
+                                            td
+                                                device-selector(
+                                                    ng-if="newInput.source === 'measurement'",
+                                                    ng-disabled="!newInput.source",
+                                                    ng-click="selectInputId()",
+                                                    filters="filters",
+                                                    on-change="onSelected")
+                                                //-
+                                                div(
+                                                ng-if="newInput.source === 'global'"
+                                                )
+                                                    select.form-control(ng-model="newInput.selectorIndice")
+                                                        option(ng-repeat="opt in dashboardData.selectors", ng-value="$index" ng-if="dashboardData.selectorsType[$index] != 'sites'") {{'deviceSelector:' + dashboardType | translate}} {{$index+1}}
+                                            //- measurement
+                                            td
+                                                select.form-control(
+                                                ng-disabled="!newInput.id",
+                                                ng-model="newInput.type",
+                                                ng-if="newInput.source == 'measurement'"
+                                                )
+                                                    option(ng-repeat="( i, type) in newInput.types", value="{{i}}")
+                                                        | {{type[0]}}    {{type[1]}}
+                                                select.form-control(
+                                                ng-model="newInput.type",
+                                                ng-if="newInput.source === 'global'"
+                                                )
+                                                    option(ng-repeat="( i, type) in globalServiceData.globalLasts", ng-value="type")
+                                                        | {{type.type}}    {{type.id}}
+
+                                            //- add button
+                                            td
+                                                a.btn(ng-click="addInput()",style="color : #BFBFBF; float:right;")
+                                                    i.fa.fa-check
+                    //- Customize tab
+                    div(ng-if="tab=='customize'")
+                        .form-group
+                            label.col-md-3.control-label
+                                | {{'Main color :' | translate}}
+                            spectrum-colorpicker.col-md-9(
+                                ng-model="widgetCopy.options.chartOptions.color",
+                                options="colorPicker.options"
+                            )
+
+
+            .modal-footer
+
+                div(style="text-align: left")
+                    i.fa.fa-fw.fa-exclamation-triangle.font-yellow
+                    | &nbsp;{{ 'for convenient reasons, the number of data displayed by input are limited to maximum' | translate}} {{WIDGET_MAX_INPUT_DATA}}.
+
+                div(ng-if="!widgetCopy.options.firstConfig && tab!='customize'")
+                    button.btn.btn-sm.custom(ng-click="$parent.$parent.tab='input'", ng-if="tab=='timeframe'", ng-disabled="!widgetCopy.options.timeframe.type")
+                        | {{ 'next:chart:dashboard' | translate }}
+                    button.btn.btn-sm.custom(ng-click="preSave()", ng-if="tab=='input'", ng-disabled="!widgetCopy.options.inputs.length")
+                        | {{ 'next:chart:dashboard' | translate }}
+
+                div(ng-if="widgetCopy.options.firstConfig && tab!='customize'")
+                    button.btn.btn-sm.default(ng-click="closeThisDialog()")
+                        | {{ 'Cancel:dashboard' | translate }}
+                    button.btn.btn-sm.custom(ng-if="widgetCopy.options.timeframe.type!='static'" ng-click="preEdit()")
+                        | {{ 'Confirm:dashboard' | translate }}
+                    button.btn.btn-sm.custom(
+                        ng-if="widgetCopy.options.timeframe.type=='static'" ,
+                        ng-disabled="!(validDate || widgetCopy.options.timeframe.from <= widgetCopy.options.timeframe.to || (!widgetCopy.options.timeframe.from && widgetCopy.options.timeframe.to) || (widgetCopy.options.timeframe.from && !widgetCopy.options.timeframe.to))" ,
+                        ng-click="preEdit()")
+                        | {{ 'Confirm:dashboard' | translate }}
+                
+                div(ng-if="tab=='customize'")
+                    button.btn.btn-sm.default(ng-click="closeThisDialog()")
+                        | {{ 'Cancel:dashboard' | translate }}
+                    button.btn.btn-sm.custom(ng-click="preEdit()")
+                        | {{ 'Confirm:dashboard' | translate }}

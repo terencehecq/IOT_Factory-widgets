@@ -1,0 +1,7 @@
+div(ng-controller="dashboard/widgets/gauge/view")
+	div.widgetspinner(ng-if="loading")
+		span.centerer
+		i(class="fa fa-spinner fa-pulse fa-3x fa-fw centered")
+	div(ng-if="!loading", style="height:100%;width:100%;")
+		object(ng-if="widget.options.svgfile && svgShow", data="{{'/'+ $root.__appName + '/' + widget.options.svgfile}}", type="image/svg+xml", width = "100%" ,height="100%")
+			param(ng-repeat="input in params", name="{{input.varName}}", value="{{input.value}}")

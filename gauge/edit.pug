@@ -1,0 +1,250 @@
+div(ng-controller="dashboard/widgets/gauge/edit")
+    div(device-selector-container, hide-filter-buttons="false")
+        .modal-header
+            h4.modal-title(ng-if="widgetCopy.options.svgfile === 'svg/gaugeWidget.svg'") {{ 'edit:gaugeWidget' | translate }} {{ 'gauge widget' | translate }}: {{ widgetCopy.title }}
+            h4.modal-title(ng-if="widgetCopy.options.svgfile === 'svg/levelWidget.svg'") {{ 'edit:gaugeWidget' | translate }} {{ 'level widget' | translate }}: {{ widgetCopy.title }}
+
+        .modal-body
+            ul.nav.nav-tabs.nav-tabs-sm( ng-if="form=='editwidget' " )
+                li(ng-class="{active:tab=='main'}")
+                    a(ng-click="changeViewTab('main')")
+                        | {{ 'main:chartwidget:tab' | translate }}
+                li(ng-class="{active:tab=='inputs'}")
+                    a(ng-click="changeViewTab('inputs')")
+                        | {{ 'inputs:chartwidget:tab' | translate }}
+
+
+            form.form-horizontal
+                .form-body
+                    //- main
+                    div( ng-if="tab=='main'",style="margin-right:50px;")
+                        .form-group
+                            label.col-md-3.control-label {{ 'title:widget:label' | translate }}
+                            .col-md-9
+                                input.form-control(ng-model="widgetCopy.title")
+                        .form-group
+                            label.col-md-3.control-label {{ 'Type:svg:dashboard' | translate }}
+                            .col-md-9
+                                select.form-control(ng-model="widgetCopy.options.svgfile")
+                                    option(value="svg/gaugeWidget.svg") 
+                                        | Gauge
+                                    option(value="svg/levelWidget.svg")
+                                        | Level
+                    //- inputs
+                    div(ng-if="tab=='inputs'")
+                        //- select
+                        div(ng-if="inputGroups")
+                            select.form-control(ng-model="obj.selectedGroup", ng-options="k as k for (k, v) in inputGroups")
+                                option( value="" ) {{'n/a'|translate}}
+                        //- table
+                        .table-scrollable
+                            //- regular
+                            table.table(style="border-color:none;", ng-if="!inputGroups")
+                                tr
+                                    th {{ 'label:input:chart' | translate }}
+                                    th {{ 'kind:input:chart' | translate }}
+                                    th {{ 'value:input:chart' | translate }}
+                                    th {{ 'measurement:input:chart' | translate }}
+                                    th &nbsp;
+                                tr(ng-repeat='input in widgetCopy.options.inputs')
+                                    //- varName (id in svg)
+                                    td {{input.varName}}
+                                    //- souce
+                                    td: select.form-control(ng-model="input.source", ng-change="svgClearSelection(input)")
+                                        option(value="")
+                                            | {{'static:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType != 'assets'")
+                                            | {{'(smart)device:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType == 'assets'")
+                                            | {{'assets:input:chart' | translate}}
+                                        option(value="global")
+                                            | {{'global:input:chart' | translate}}
+                                        option(value="color")
+                                            | {{'color:input:chart' | translate}}
+                                        option(value ="timestamp")
+                                            | {{'timestamp:input:chart' | translate}}
+                                    //- source selector
+                                    td(ng-if="(input.source == 'measurement' && !input.type) || (input.source === 'global' && !input.type)")
+                                        device-selector(ng-if="input.source == 'measurement' && !input.type"
+                                          ng-disabled="!input.source",
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                        div(ng-if="input.source === 'global' && !input.type " )
+                                            select.form-control(ng-model="input.selectorIndice")
+                                                option(ng-repeat="opt in dashboardData.selectors", ng-value="$index" ng-if="dashboardData.selectorsType[$index] != 'sites'") {{'deviceSelector:' + dashboardType | translate}} {{$index+1}}
+                                    td(ng-if="input.source == 'measurement' && input.type")
+                                        span(title="{{input.id}}") {{ getInputDocumentName(input.kind, input.id) }}
+                                    td(ng-if="input.source =='global' && input.type")
+                                        span(ng-if="input.selectorIndice >= 0 && input.selectorIndice != ''") 
+                                            | {{dashboardData.selected[input.selectorIndice][0].name || dashboardData.stored.selected[input.selectorIndice][0]}}
+                                        span(ng-if="!(input.selectorIndice >= 0 && input.selectorIndice != '')")
+                                            | {{dashboardData.device.name || dashboardData.stored.device}}
+                                    td(ng-if="input.source == 'color'")
+                                        spectrum-colorpicker(
+                                          ng-model="input.value",
+                                          options="colorPicker.options")
+                                    td(ng-if="input.source == 'timestamp' && !input.id && !input.kind")
+                                        device-selector(
+                                          ng-disabled="!input.source"
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                    td(ng-if="input.source == 'timestamp' && input.id && input.kind")
+                                        span(title="{{input.id}}") {{ getInputDocumentName(input.kind, input.id) }}
+                                    td(ng-if="input.source != 'measurement' && input.source != 'color' && input.source != 'timestamp' && input.source != 'global'")
+                                        input.form-control(ng-class="{error: !input.value}", ng-model="input.value")
+                                    //- measurement
+                                    td
+                                        select.form-control(
+                                          ng-disabled="!input.id",
+                                          ng-model="input.pretype",
+                                          ng-if="input.source == 'measurement' && !input.type"
+                                          )
+                                            option(ng-repeat="( i, type) in input.types", value="{{i}}")
+                                                | {{type[0]}}    {{type[1]}}
+                                        span(ng-if="input.source=='measurement' && input.type")
+                                            | {{input.type}} {{input.indice}}
+                                        select.form-control(
+                                          ng-model="input.pretype",
+                                          ng-if="input.source == 'global' && !input.type && input.selectorIndice >= 0 && input.selectorIndice != null && input.varName !== 'timestamp'")
+                                            option(ng-repeat="type in dashboardData.bySelector[input.selectorIndice].types", value="{{type}}" )
+                                                | {{type}}
+                                        span(ng-if="input.source=='global' && input.type && input.varName !== 'timestamp'")
+                                            | {{input.type}} {{input.indice}}
+                                    //- trash
+                                    td
+                                        div(ng-if="(input.source=='measurement' && input.type) || (input.source=='timestamp' && input.kind && input.id) || (input.source=='global' && input.type)")
+                                            a.btn(ng-click="eraseInputValue(input)",style="color : #BFBFBF;")
+                                                i.fa.fa-fw.icon-trash
+                            //- iotfactory svg 2
+                            table.table(style="border-color:none;", ng-if="inputGroups")
+                                //-
+                                tr
+                                    th {{ 'label:input:chart' | translate }}
+                                    th {{ 'kind:input:chart' | translate }}
+                                    th {{ 'value:input:chart' | translate }}
+                                    th {{ 'measurement:input:chart' | translate }}
+                                    th &nbsp;
+                                tr(
+                                  ng-if="obj.selectedGroup",
+                                  ng-repeat="(idx, input) in inputGroups[obj.selectedGroup]",
+                                  ng-class="{'no-border-top': idx}"
+                                  )
+                                    //- varName (id in svg)
+                                    td {{getGroupInputVarname(input.varName, obj.selectedGroup)}}
+                                    //- souce
+                                    td: select.form-control(ng-model="input.source", ng-change="svgClearSelection(input)")
+                                        option(value="")
+                                            | {{'static:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType != 'assets'")
+                                            | {{'(smart)device:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType == 'assets'")
+                                            | {{'assets:input:chart' | translate}}
+                                        option(value="color")
+                                            | {{'color:input:chart' | translate}}
+                                        option(value ="timestamp")
+                                            | {{'timestamp:input:chart' | translate}}
+                                    //- source selector
+                                    td(ng-if="input.source == 'measurement' && !input.type")
+                                        device-selector(
+                                          ng-disabled="!input.source",
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                    td(ng-if="input.source == 'measurement' && input.type")
+                                        span(title="{{input.id}}") {{ getInputDocumentName(input.kind, input.id) }}
+                                    td(ng-if="input.source == 'color'")
+                                        spectrum-colorpicker(
+                                          ng-model="input.value",
+                                          options="colorPicker.options")
+                                    td(ng-if="input.source == 'timestamp'")
+                                        device-selector(
+                                          ng-if="!(input.kind && input.id)",
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                        span(ng-if="(input.kind && input.id)") {{ getInputDocumentName(input.kind, input.id) }}
+                                    td(ng-if="input.source != 'measurement' && input.source != 'color' && input.source != 'timestamp'")
+                                        input.form-control(ng-class="{error: !input.value}", ng-model="input.value")
+                                    //- measurement
+                                    td
+                                        select.form-control(
+                                          ng-disabled="!input.id",
+                                          ng-model="input.pretype",
+                                          ng-if="input.source == 'measurement' && !input.type"
+                                          )
+                                            option(ng-repeat="( i, type) in input.types", value="{{i}}")
+                                                | {{type[0]}}    {{type[1]}}
+                                        span(ng-if="input.source=='measurement' && input.type")
+                                            | {{input.type}}  {{input.indice}}
+                                    //- trash
+                                    td
+                                        div(
+                                          ng-if="(input.source=='measurement' && input.type) || (input.source=='timestamp' && input.kind && input.id)"
+                                          )
+                                            a.btn(ng-click="eraseInputValue(input)",style="color : #BFBFBF;")
+                                                i.fa.fa-fw.icon-trash
+                                //-
+                                tr(
+                                  ng-if="!obj.selectedGroup",
+                                  ng-repeat="(idx, input) in unknownGroup",
+                                  ng-class="{'no-border-top': idx}"
+                                  )
+                                    td {{input.varName}}
+                                    //- souce
+                                    td: select.form-control(ng-model="input.source", ng-change="svgClearSelection(input)")
+                                        option(value="")
+                                            | {{'static:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType != 'assets'")
+                                            | {{'(smart)device:input:chart' | translate}}
+                                        option(value="measurement", ng-if="dashboardType == 'assets'")
+                                            | {{'assets:input:chart' | translate}}
+                                        option(value="color")
+                                            | {{'color:input:chart' | translate}}
+                                        option(value ="timestamp")
+                                            | {{'timestamp:input:chart' | translate}}
+                                    //- source selector
+                                    td(ng-if="input.source == 'measurement' && !input.type")
+                                        device-selector(
+                                          ng-disabled="!input.source",
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                    td(ng-if="input.source == 'measurement' && input.type")
+                                        span(title="{{input.id}}") {{ getInputDocumentName(input.kind, input.id) }}
+                                    td(ng-if="input.source == 'color'")
+                                        spectrum-colorpicker(
+                                          ng-model="input.value",
+                                          options="colorPicker.options")
+                                    td(ng-if="input.source == 'timestamp'")
+                                        device-selector(
+                                          ng-click="selectInputId(input)",
+                                          filters="filters",
+                                          on-change="onSelected")
+                                    td(ng-if="input.source != 'measurement' && input.source != 'color' && input.source != 'timestamp'")
+                                        input.form-control(ng-class="{error: !input.value}", ng-model="input.value")
+                                    //- measurement
+                                    td
+                                        select.form-control(
+                                          ng-disabled="!input.id",
+                                          ng-model="input.pretype",
+                                          ng-if="input.source == 'measurement' && !input.type"
+                                          )
+                                            option(ng-repeat="( i, type) in input.types", value="{{i}}")
+                                                | {{type[0]}}    {{type[1]}}
+                                        span(ng-if="input.source=='measurement' && input.type")
+                                            | {{input.type}}  {{input.indice}}
+                                    //- trash
+                                    td
+                                        div(ng-if="(input.source=='measurement' && input.type) || (input.source=='timestamp' && input.kind && input.id)")
+                                            a.btn(ng-click="eraseInputValue(input)",style="color : #BFBFBF;")
+                                                i.fa.fa-fw.icon-trash
+                                    
+
+        .modal-footer(ng-if="tab!='preview'")
+            div(ng-if="form=='editwidget'")
+                button.btn.btn-sm.default(ng-click="closeThisDialog()")
+                    | {{ 'Cancel:dashboard' | translate }}
+                button.btn.btn-sm.custom(ng-click="preSave()")
+                    | {{ 'Confirm:dashboard' | translate }}
