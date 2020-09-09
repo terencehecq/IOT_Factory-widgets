@@ -48,3 +48,7 @@ I mainly worked on the **design** in **adobe Xd** & then applied it to the **Ion
 My last task was to **deploy** [IOT Factory App](https://apps.apple.com/be/app/iot-factory-mobile/id1525719085?l=fr) on the *Apple App Store*. After some little bugs & dependencies corrections, I did it ! (check the link)
 
 ![Before/after app](./App/av_ap-app.png)
+
+I also designed & produced the app release image.
+
+![App release](./App/App-release-img-final.png)
